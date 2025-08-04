@@ -65,7 +65,7 @@ BetaBot features a beautiful, modern single-page web application that provides f
 ### Setup
 1. **Clone the repository:**
    ```sh
-   git clone https://github.com/Paul-0x5061756c/semantic-kernel-workshop
+   git clone https://github.com/Betabit-Learn-Center/SemanticKernelWorkshop
    cd semantic-kernel-workshop
    ```
 2. **Configure settings:**
