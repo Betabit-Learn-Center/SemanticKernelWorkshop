@@ -24,10 +24,10 @@ jobs:
           dotnet-version: '8.x'
 
       - name: Build with dotnet
-        run: dotnet build Azure-Semantic-Kernel-Workshop.csproj --configuration Release
+        run: dotnet build semantic-kernel-workshop.sln --configuration Release
 
-      - name: dotnet publish
-        run: dotnet publish Azure-Semantic-Kernel-Workshop.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
+      - name: dotnet publish semantic-kernel-workshop.sln
+        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
