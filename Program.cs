@@ -9,7 +9,9 @@ using Microsoft.SemanticKernel.ChatCompletion;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add configuration
-builder.Configuration.AddEnvironmentVariables().AddJsonFile("appsettings.json", optional: true);
+builder.Configuration
+  .AddJsonFile("appsettings.json", optional: true)
+  .AddEnvironmentVariables();
 
 // Configure logging
 builder.Services.AddLogging(config =>
