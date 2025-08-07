@@ -1,5 +1,4 @@
 using Azure.AI.TextAnalytics;
-using Microsoft.Extensions.Logging;
 
 namespace Azure_Semantic_Kernel_Workshop
 {
@@ -12,10 +11,10 @@ namespace Azure_Semantic_Kernel_Workshop
         {
             _client = client;
             _logger = logger;
-        }        public async Task<string> AnalyzeSentimentAsync(string text)
+        }
+        public async Task<string> AnalyzeSentimentAsync(string text)
         {
             _logger.LogInformation("Analyzing sentiment for text of length: {TextLength}", text.Length);
-            
             try
             {
                 var response = await _client.AnalyzeSentimentAsync(text);
@@ -33,7 +32,6 @@ namespace Azure_Semantic_Kernel_Workshop
         public async Task<string> DetectLanguageAsync(string text)
         {
             _logger.LogInformation("Detecting language for text of length: {TextLength}", text.Length);
-            
             try
             {
                 var response = await _client.DetectLanguageAsync(text);
@@ -51,7 +49,6 @@ namespace Azure_Semantic_Kernel_Workshop
         public async Task<string> ExtractKeyPhrasesAsync(string text)
         {
             _logger.LogInformation("Extracting key phrases for text of length: {TextLength}", text.Length);
-            
             try
             {
                 var response = await _client.ExtractKeyPhrasesAsync(text);

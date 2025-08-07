@@ -4,26 +4,17 @@ using Microsoft.SemanticKernel;
 
 namespace Azure_Semantic_Kernel_Workshop
 {
-  public class CalendarPlugin
+  public class CalendarPlugin(IGraphService graphService, ILogger<CalendarPlugin> logger)
   {
-    private readonly IGraphService _graphService;
-    private readonly ILogger<CalendarPlugin> _logger;
-
-    public CalendarPlugin(IGraphService graphService, ILogger<CalendarPlugin> logger)
-    {
-      _graphService = graphService;
-      _logger = logger;
-    }
-
     [KernelFunction("GetTodaysDateAndTime")]
     [Description("Get today's date and time")]
     [return: Description("Today's date and time")]
     public DateTime GetTodaysDateAndTime()
     {
-      _logger.LogDebug("Getting today's date and time in Europe/Amsterdam timezone");
+      logger.LogDebug("Getting today's date and time in Europe/Amsterdam timezone");
       var nlTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Amsterdam");
       var nlTime = TimeZoneInfo.ConvertTime(DateTime.UtcNow, nlTimeZone);
-      _logger.LogDebug("Current date and time: {DateTime}", nlTime);
+      logger.LogDebug("Current date and time: {DateTime}", nlTime);
       return nlTime;
     }
 
@@ -33,9 +24,9 @@ namespace Azure_Semantic_Kernel_Workshop
     public async Task<List<Event>> GetCalendarEventsForToday(
         [Description("The date to get the events for")] DateTime date)
     {
-      _logger.LogInformation("Getting calendar events for date: {Date}", date.ToString("yyyy-MM-dd"));
-      var events = await _graphService.GetOutlookEventsAsync(date);
-      _logger.LogInformation("Retrieved {EventCount} calendar events for date: {Date}", events.Count, date.ToString("yyyy-MM-dd"));
+      logger.LogInformation("Getting calendar events for date: {Date}", date.ToString("yyyy-MM-dd"));
+      var events = await graphService.GetOutlookEventsAsync(date);
+      logger.LogInformation("Retrieved {EventCount} calendar events for date: {Date}", events.Count, date.ToString("yyyy-MM-dd"));
       return events;
     }
 
@@ -48,10 +39,10 @@ namespace Azure_Semantic_Kernel_Workshop
         [Description("The end time of the event")] DateTime endTime
         )
     {
-       _logger.LogInformation("Adding calendar event: {Subject} on {Date} from {StartTime} to {EndTime}", 
+       logger.LogInformation("Adding calendar event: {Subject} on {Date} from {StartTime} to {EndTime}", 
            subject, date.ToString("yyyy-MM-dd"), startTime.ToString("HH:mm"), endTime.ToString("HH:mm"));
-       await _graphService.AddEventToCalendarAsync(date, subject, startTime, endTime);
-       _logger.LogInformation("Successfully added calendar event: {Subject}", subject);
+       await graphService.AddEventToCalendarAsync(date, subject, startTime, endTime);
+       logger.LogInformation("Successfully added calendar event: {Subject}", subject);
     }
   }
 }
