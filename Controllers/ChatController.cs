@@ -16,16 +16,16 @@ namespace Azure_Semantic_Kernel_Workshop.Controllers
         private static readonly ChatHistory _chatMessages = new();
         private IConfiguration _configuration;
 
-        public ChatController(Kernel kernel, IChatCompletionService chatService, IConfiguration configuration) 
+        public ChatController(Kernel kernel, IChatCompletionService chatService, IConfiguration configuration)
         {
             _kernel = kernel;
             _chatService = chatService;
             _configuration = configuration;
-            
+
             // Initialize system message if not already added
             if (_chatMessages.Count == 0)
             {
-               var systemMessage = _configuration["SYSTEM_PROMPT"] ?? throw new InvalidOperationException("System message is not configured.");
+                var systemMessage = _configuration["SYSTEM_PROMPT"] ?? throw new InvalidOperationException("System message is not configured.");
                 _chatMessages.AddSystemMessage(systemMessage);
             }
         }
@@ -73,7 +73,6 @@ namespace Azure_Semantic_Kernel_Workshop.Controllers
                 .Where(msg => msg.Role != AuthorRole.System)
                 .Select(msg => new { Role = msg.Role.ToString(), Content = msg.Content })
                 .ToList();
-            
             return Ok(history);
         }
 
@@ -87,7 +86,6 @@ namespace Azure_Semantic_Kernel_Workshop.Controllers
             {
                 _chatMessages.Add(systemMessage);
             }
-            
             return Ok();
         }
     }

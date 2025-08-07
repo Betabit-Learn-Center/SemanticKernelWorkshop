@@ -1,6 +1,6 @@
 namespace Azure_Semantic_Kernel_Workshop
 {
-  public class EmailPlugin 
+  public class EmailPlugin(IEmailService emailService, ILogger<EmailPlugin> logger)
   {
     private readonly IEmailService _emailService;
     private readonly ILogger<EmailPlugin> _logger;

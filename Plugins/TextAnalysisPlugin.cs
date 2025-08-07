@@ -1,6 +1,6 @@
 namespace Azure_Semantic_Kernel_Workshop
 {
-  public class TextAnalysisPlugin 
+  public class TextAnalysisPlugin(ITextAnalysisService textAnalysisService, ILogger<TextAnalysisPlugin> logger)
   {
     private readonly ITextAnalysisService _textAnalysisService;
     private readonly ILogger<TextAnalysisPlugin> _logger;

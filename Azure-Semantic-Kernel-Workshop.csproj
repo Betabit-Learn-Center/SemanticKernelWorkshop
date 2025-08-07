@@ -1,18 +1,20 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>Azure_Semantic_Kernel_Workshop</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Azure.AI.TextAnalytics" Version="5.3.0" />
-    <PackageReference Include="Azure.Identity" Version="1.14.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.4" />
-    <PackageReference Include="Microsoft.Graph" Version="5.79.0" />
-    <PackageReference Include="Microsoft.SemanticKernel" Version="1.47.0" />
+    <PackageReference Include="Azure.Identity" Version="1.14.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="9.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Graph" Version="5.89.0" />
+    <PackageReference Include="Microsoft.Identity.Web" Version="3.12.0" />
+    <PackageReference Include="Microsoft.SemanticKernel" Version="1.61.0" />
     <PackageReference Include="SimpleFeedReader" Version="2.0.4" />
   </ItemGroup>
-
 </Project>

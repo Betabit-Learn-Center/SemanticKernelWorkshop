@@ -2,7 +2,7 @@ using SimpleFeedReader;
 
 namespace Azure_Semantic_Kernel_Workshop
 {
-  public class NewsPlugin
+  public class NewsPlugin(INewsService newsService, ILogger<NewsPlugin> logger)
   {
     private readonly INewsService _newsService;
     private readonly ILogger<NewsPlugin> _logger;

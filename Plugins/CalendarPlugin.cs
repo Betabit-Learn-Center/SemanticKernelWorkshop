@@ -2,7 +2,7 @@ using Microsoft.Graph.Models;
 
 namespace Azure_Semantic_Kernel_Workshop
 {
-  public class CalendarPlugin
+  public class CalendarPlugin(IGraphService graphService, ILogger<CalendarPlugin> logger)
   {
     private readonly IGraphService _graphService;
     private readonly ILogger<CalendarPlugin> _logger;

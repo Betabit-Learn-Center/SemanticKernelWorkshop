@@ -1,22 +1,57 @@
 ﻿using Azure;
 using Azure.AI.TextAnalytics;
-using Azure.Identity;
 using Azure_Semantic_Kernel_Workshop;
-using Microsoft.Graph;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.Identity.Web;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.Graph;
+using Microsoft.Kiota.Abstractions.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add configuration
 builder.Configuration.AddJsonFile("appsettings.json", optional: true);
 
+builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+  .AddMicrosoftIdentityWebApp(options =>
+  {
+      builder.Configuration.GetSection("AzureAd").Bind(options);
+      options.TokenValidationParameters.ValidateIssuer = false;
+      options.Events = new OpenIdConnectEvents
+      {
+          OnAccessDenied = context =>
+          {
+              context.Response.Redirect("/access-denied");
+              context.HandleResponse();
+              return Task.CompletedTask;
+          }
+      };
+  })
+  .EnableTokenAcquisitionToCallDownstreamApi()
+  .AddInMemoryTokenCaches();
+
+// Add HttpClient for Graph API calls
+builder.Services.AddHttpClient();
+
+builder.Services.AddScoped<GraphServiceClient>(serviceProvider =>
+{
+    var tokenAcquisition = serviceProvider.GetRequiredService<ITokenAcquisition>();
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var tokenProvider = new TokenProvider(tokenAcquisition, configuration);
+    var authProvider = new BaseBearerTokenAuthenticationProvider(tokenProvider);
+    return new GraphServiceClient(authProvider);
+});
+
+
 // Configure logging
 builder.Services.AddLogging(config =>
 {
     config.AddConsole();
     config.AddDebug();
-    
+
     // Set minimum log level based on environment
     if (builder.Environment.IsDevelopment())
     {
@@ -29,7 +64,16 @@ builder.Services.AddLogging(config =>
 });
 
 // Add services to the container
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    var policy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+
+    options.Filters.Add(new AuthorizeFilter(policy));
+    options.Filters.Add<RequireGraphTokenAttribute>();
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(builder =>
@@ -41,56 +85,61 @@ builder.Services.AddCors(options =>
 });
 
 // Configuration values
-string appClientId = builder.Configuration["AZURE:APP_CLIENT_ID"]!;
-string appTenantId = builder.Configuration["AZURE:APP_TENANT_ID"]!;
-string openAiEndpoint = builder.Configuration["AZURE:OPENAI_ENDPOINT"]!;
-string openAiKey = builder.Configuration["AZURE:OPENAI_API_KEY"]!;
-string openAiDeploymentName = builder.Configuration["AZURE:OPENAI_DEPLOYMENT_NAME"]!;
+string openAiEndpoint = builder.Configuration["OpenAI:OPENAI_ENDPOINT"]!;
+string openAiKey = builder.Configuration["OpenAI:OPENAI_API_KEY"]!;
+string openAiDeploymentName = builder.Configuration["OpenAI:OPENAI_DEPLOYMENT_NAME"]!;
 
-// Add Semantic Kernel
+var textAnalyticsClient = new TextAnalyticsClient(new Uri(openAiEndpoint), new AzureKeyCredential(openAiKey));
+
+// Register services in DI container 
+builder.Services.AddSingleton(textAnalyticsClient);
+builder.Services.AddScoped<IGraphService, GraphService>();
+builder.Services.AddScoped<INewsService, GoogleRssFeedService>();
+builder.Services.AddScoped<IEmailService, OutlookEmailService>();
+builder.Services.AddSingleton<ITextAnalysisService, AzureTextAnalytics>();
+
+// Add Semantic Kernel services to the DI container
 var kernelBuilder = Kernel.CreateBuilder();
 kernelBuilder.Services.AddAzureOpenAIChatCompletion(
     deploymentName: openAiDeploymentName,
     endpoint: openAiEndpoint,
     apiKey: openAiKey);
 
-// Set up Graph client and services
-var scopes = new[] { "Calendars.ReadWrite", "Mail.Send" };
-var graphClient = new GraphServiceClient(new InteractiveBrowserCredential(tenantId: appTenantId, clientId: appClientId), scopes);
-var textAnalyticsClient = new TextAnalyticsClient(new Uri(openAiEndpoint), new AzureKeyCredential(openAiKey));
+// Register kernel builder services with the main DI container
+foreach (var service in kernelBuilder.Services)
+{
+    builder.Services.Add(service);
+}
 
-// Register services in DI container
-builder.Services.AddSingleton(graphClient);
-builder.Services.AddSingleton(textAnalyticsClient);
-builder.Services.AddSingleton<IGraphService, GraphService>();
-builder.Services.AddSingleton<INewsService, GoogleRssFeedService>();
-builder.Services.AddSingleton<IEmailService, OutlookEmailService>();
-builder.Services.AddSingleton<ITextAnalysisService, AzureTextAnalytics>();
+// Register kernel as a scoped service that will be built when first requested
+builder.Services.AddScoped<Kernel>(serviceProvider =>
+{
+    var kernel = kernelBuilder.Build();
 
-// Build kernel and register as singleton
-var kernel = kernelBuilder.Build();
-builder.Services.AddSingleton(kernel);
-builder.Services.AddSingleton(kernel.GetRequiredService<IChatCompletionService>());
+    // Get services from DI container and create plugins
+    var graphService = serviceProvider.GetRequiredService<IGraphService>();
+    var newsService = serviceProvider.GetRequiredService<INewsService>();
+    var emailService = serviceProvider.GetRequiredService<IEmailService>();
+    var textAnalysisService = serviceProvider.GetRequiredService<ITextAnalysisService>();
+
+    // Create plugins with logger injection
+    var calendarPlugin = new CalendarPlugin(graphService, serviceProvider.GetRequiredService<ILogger<CalendarPlugin>>());
+    var newsPlugin = new NewsPlugin(newsService, serviceProvider.GetRequiredService<ILogger<NewsPlugin>>());
+    var emailPlugin = new EmailPlugin(emailService, serviceProvider.GetRequiredService<ILogger<EmailPlugin>>());
+    var textAnalysisPlugin = new TextAnalysisPlugin(textAnalysisService, serviceProvider.GetRequiredService<ILogger<TextAnalysisPlugin>>());
+
+    // Register plugins with kernel
+    kernel.Plugins.AddFromObject(calendarPlugin);
+    kernel.Plugins.AddFromObject(newsPlugin);
+    kernel.Plugins.AddFromObject(emailPlugin);
+    kernel.Plugins.AddFromObject(textAnalysisPlugin);
+    return kernel;
+});
+
+builder.Services.AddScoped<IChatCompletionService>(serviceProvider =>
+    serviceProvider.GetRequiredService<Kernel>().GetRequiredService<IChatCompletionService>());
 
 var app = builder.Build();
-
-// Get services from DI container
-var graphService = app.Services.GetRequiredService<IGraphService>();
-var newsService = app.Services.GetRequiredService<INewsService>();
-var emailService = app.Services.GetRequiredService<IEmailService>();
-var textAnalysisService = app.Services.GetRequiredService<ITextAnalysisService>();
-
-// Create plugins with logger injection
-var calendarPlugin = new CalendarPlugin(graphService, app.Services.GetRequiredService<ILogger<CalendarPlugin>>());
-var newsPlugin = new NewsPlugin(newsService, app.Services.GetRequiredService<ILogger<NewsPlugin>>());
-var emailPlugin = new EmailPlugin(emailService, app.Services.GetRequiredService<ILogger<EmailPlugin>>());
-var textAnalysisPlugin = new TextAnalysisPlugin(textAnalysisService, app.Services.GetRequiredService<ILogger<TextAnalysisPlugin>>());
-
-// Register plugins with kernel
-kernel.Plugins.AddFromObject(calendarPlugin);
-kernel.Plugins.AddFromObject(newsPlugin);
-kernel.Plugins.AddFromObject(emailPlugin);
-kernel.Plugins.AddFromObject(textAnalysisPlugin);
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
@@ -100,7 +149,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseRouting();
 app.UseCors();
-app.UseDefaultFiles();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseStaticFiles();
 
 app.Use(async (context, next) =>
@@ -114,21 +166,6 @@ app.Use(async (context, next) =>
 
 
 app.MapControllers();
-
-// Fallback to serve index.html for any non-API routes
-app.MapFallbackToFile("index.html");
-
-// Trigger auth on startup
-try
-{
-    await graphClient.Me.Calendar.GetAsync();
-    Console.WriteLine("✅ Microsoft Graph authentication successful!");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"⚠️ Microsoft Graph authentication failed: {ex.Message}");
-    Console.WriteLine("You may need to authenticate when using calendar or email features.");
-}
 
 Console.WriteLine("===============================================");
 Console.WriteLine("         🌟 BetaBot Web App Started!  🌟");
