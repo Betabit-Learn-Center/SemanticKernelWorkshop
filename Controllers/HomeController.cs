@@ -17,7 +17,7 @@ namespace Azure_Semantic_Kernel_Workshop.Controllers
         [HttpGet]
         public IActionResult Index()
         {
-            var filePath = Path.Combine(_environment.ContentRootPath, "Views", "Home", "index.html");
+            var filePath = Path.Combine(_environment.WebRootPath, "Views", "Home", "index.html");
             return PhysicalFile(filePath, "text/html");
         }
     }
